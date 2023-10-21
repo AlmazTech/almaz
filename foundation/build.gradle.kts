@@ -5,9 +5,9 @@ plugins {
 
 dependencies {
     repositories {
-        implementation("org.antlr:antlr4:4.13.1")
+        implementation("org.antlr:antlr4-runtime:4.13.1")
         implementation("org.ow2.asm:asm:7.3.1")
-        implementation(project(":lexer"))
+        implementation("org.antlr:antlr4:4.13.1")
     }
 }
 

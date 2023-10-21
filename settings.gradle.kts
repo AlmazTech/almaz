@@ -16,3 +16,5 @@ dependencyResolutionManagement {
 rootProject.name = "almaz"
 
 include(":compiler")
+include(":foundation")
+include(":lexer")
