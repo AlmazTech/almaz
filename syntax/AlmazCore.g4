@@ -2,6 +2,6 @@ grammar AlmazCore;
 
 import AlmazFunctions, AlmazVariables;
 
-program: mainFunction;
+program: mainFunction* function*;
 
 WS: [ \t\r\n]+ -> skip;

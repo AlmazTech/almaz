@@ -2,6 +2,7 @@ package com.almaztech.almaz
 
 import com.almaztech.almaz.backend.Compilable
 import com.almaztech.almaz.backend.Executable
+import com.almaztech.almaz.backend.loader.ByteArrayClassLoader
 import com.almaztech.almaz.lexer.core.AlmazCoreBaseListener
 import com.almaztech.almaz.lexer.core.AlmazCoreLexer
 import com.almaztech.almaz.lexer.core.AlmazCoreParser
@@ -22,6 +23,12 @@ class AlmazCompiler : AlmazCoreBaseListener(), Compilable, Executable {
         classWriter.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC, "Program", null, "java/lang/Object", null)
         methodVisitor = classWriter.visitMethod(Opcodes.ACC_PUBLIC + Opcodes.ACC_STATIC, "main", "([Ljava/lang/String;)V", null, null)
         methodVisitor?.visitCode()
+    }
+
+    override fun exitPrintStatement(ctx: AlmazCoreParser.PrintStatementContext) {
+        methodVisitor?.visitFieldInsn(Opcodes.GETSTATIC, "java/lang/System", "out", "Ljava/io/PrintStream;")
+        visitExpression(ctx.expression())
+        methodVisitor?.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/io/PrintStream", "println", "(Ljava/lang/Object;)V", false)
     }
 
     override fun exitProgram(ctx: AlmazCoreParser.ProgramContext?) {
@@ -49,6 +56,59 @@ class AlmazCompiler : AlmazCoreBaseListener(), Compilable, Executable {
         val method = clazz.getDeclaredMethod("main", Array<String>::class.java)
         method.invoke(null, emptyArray<String>())
     }
+
+    private fun visitExpression(expressionContext: AlmazCoreParser.ExpressionContext) {
+        visitTerm(expressionContext.term(0))
+        for (i in 1 until expressionContext.term().size) {
+            val operator = expressionContext.getChild(i * 2 - 1).text
+            val term = expressionContext.term(i)
+            if (operator == "+") {
+                methodVisitor?.visitInsn(Opcodes.IADD)
+            } else if (operator == "-") {
+                methodVisitor?.visitInsn(Opcodes.ISUB)
+            }
+            visitTerm(term)
+        }
+    }
+
+    private fun visitTerm(termContext: AlmazCoreParser.TermContext) {
+        visitFactor(termContext.factor(0))
+        for (i in 1 until termContext.factor().size) {
+            val operator = termContext.getChild(i * 2 - 1).text
+            val factor = termContext.factor(i)
+            if (operator == "*") {
+                methodVisitor?.visitInsn(Opcodes.IMUL)
+            } else if (operator == "/") {
+                methodVisitor?.visitInsn(Opcodes.IDIV)
+            }
+            visitFactor(factor)
+        }
+    }
+
+    private fun visitFactor(factorContext: AlmazCoreParser.FactorContext) {
+        val firstSubExpression = factorContext.expression()
+        if (firstSubExpression != null) {
+            visitExpression(firstSubExpression)
+            return
+        }
+
+        if (factorContext.INT() != null) {
+            val intValue = factorContext.INT().text.toInt()
+            methodVisitor?.visitLdcInsn(intValue)
+            return
+        }
+
+        if (factorContext.STRING() != null) {
+            val stringValue = factorContext.STRING().text.replace('"', ' ').trim()
+            visitStringLiteral(stringValue)
+            return
+        }
+
+    }
+
+    private fun visitStringLiteral(stringLiteral: String) {
+        methodVisitor?.visitLdcInsn(stringLiteral)
+    }
 }
 
 fun main() {
@@ -57,3 +117,5 @@ fun main() {
     val bytecode = compiler.compile(data)
     compiler.execute(bytecode)
 }
+
+const val PATH = "C:\\Programming\\Almaz\\almaz\\compiler\\src\\main\\kotlin\\com\\almaztech\\almaz"
